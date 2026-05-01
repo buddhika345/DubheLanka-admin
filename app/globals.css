@@ -1,0 +1,252 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #020b18;
+  color: white;
+  font-family: Arial, sans-serif;
+}
+
+.navbar {
+  height: 86px;
+  border-top: 3px solid #ff7a18;
+  border-bottom: 1px solid #14243a;
+  background: #050d1c;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 9%;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.logoBox {
+  width: 42px;
+  height: 42px;
+  border: 2px solid #ff8c2a;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 18px #ff8c2a;
+  background: #071426;
+}
+
+.logoBox img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+}
+.brandText h2 {
+  margin: 0;
+  letter-spacing: 1px;
+}
+
+.brandText span {
+  color: #ff7a18;
+  font-style: italic;
+}
+
+.brandText p {
+  margin: 2px 0 0;
+  color: #9aa8bb;
+  font-size: 12px;
+  letter-spacing: 4px;
+}
+
+.websiteBtn {
+  border: none;
+  border-radius: 30px;
+  padding: 12px 26px;
+  background: linear-gradient(90deg, #ff6a00, #ffad5a);
+  color: #ffffff; /* 👈 white text */
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 18px rgba(255, 122, 24, 0.5);
+}
+
+/* 🔥 Hover */
+.websiteBtn:hover {
+  color: #ffffff; /* 👈 keep white on hover */
+  transform: translateY(-2px) scale(1.03);
+  background: linear-gradient(90deg, #ff7a18, #ffd3a3);
+  box-shadow: 0 0 28px rgba(255, 140, 42, 0.9);
+}
+
+/* 👇 Click */
+.websiteBtn:active {
+  transform: scale(0.95);
+}
+
+
+
+.page {
+  min-height: calc(100vh - 86px);
+  background-image: linear-gradient(rgba(2, 11, 24, 0.9), rgba(2, 11, 24, 0.96));
+  padding: 60px 9%;
+}
+
+.loginCard {
+  max-width: 430px;
+  margin: 40px auto;
+  padding: 34px;
+  border: 1px solid #1d3552;
+  border-radius: 24px;
+  background: rgba(5, 17, 34, 0.9);
+  box-shadow: 0 0 40px rgba(255, 122, 24, 0.15);
+  text-align: center;
+}
+
+.userIcon {
+  width: 90px;
+  height: 90px;
+  margin: 0 auto 18px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: #0d2038;
+  border: 2px solid #ff7a18;
+  font-size: 42px;
+}
+
+input,
+select {
+  width: 100%;
+  padding: 13px;
+  margin: 8px 0;
+  border-radius: 12px;
+  border: 1px solid #24415f;
+  background: #071426;
+  color: white;
+}
+
+
+
+.dashboardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card {
+  background: rgba(5, 17, 34, 0.9);
+  border: 1px solid #1d3552;
+  border-radius: 18px;
+  padding: 22px;
+  margin-top: 20px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: 1.3fr 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 18px;
+}
+
+th,
+td {
+  border-bottom: 1px solid #1d3552;
+  padding: 12px;
+  text-align: left;
+  font-size: 14px;
+}
+
+th {
+  color: #ff9b42;
+}
+
+.mapBtn {
+  color: #ff9b42;
+  font-weight: bold;
+  text-decoration: none;
+}
+
+.imageLink {
+  color: #9ed0ff;
+  text-decoration: underline;
+}
+/* 🔹 Primary Button (Login) */
+.primaryBtn {
+  border: none;
+  border-radius: 30px;
+  padding: 12px 24px;
+  background: linear-gradient(90deg, #ff6a00, #ffad5a);
+  color: #ffffff; /* white text */
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 0 18px rgba(255, 122, 24, 0.5);
+}
+
+/* Hover */
+.primaryBtn:hover {
+  color: #ffffff; /* keep white */
+  transform: translateY(-2px) scale(1.03);
+  background: linear-gradient(90deg, #ff7a18, #ffd3a3);
+  box-shadow: 0 0 28px rgba(255, 140, 42, 0.9);
+}
+
+/* Click */
+.primaryBtn:active {
+  transform: scale(0.95);
+}
+
+
+/* 🔹 Secondary Button (Signup) */
+.secondaryBtn {
+  border-radius: 30px;
+  padding: 12px 24px;
+  background: transparent;
+  color: #ffffff; /* white text */
+  border: 1px solid #ff7a18;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+/* Hover */
+.secondaryBtn:hover {
+  color: #ffffff; /* keep white */
+  background: rgba(255, 122, 24, 0.15);
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 20px rgba(255, 122, 24, 0.6);
+}
+
+/* Click */
+.secondaryBtn:active {
+  transform: scale(0.95);
+}
+.btnRow {
+  display: flex;
+  gap: 12px; /* 👈 space between buttons */
+  margin-top: 14px;
+}
+.dateInput {
+  color-scheme: dark;
+  cursor: pointer;
+}
+
+.dateInput::-webkit-calendar-picker-indicator {
+  cursor: pointer;
+  filter: invert(1);
+  opacity: 1;
+}
+
+.logoBox img {
+  width: 30px;
+  height: 30px;
+  object-fit: contain;
+}
