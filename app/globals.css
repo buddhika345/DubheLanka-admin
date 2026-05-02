@@ -437,3 +437,23 @@ th {
     font-size: 14px;
   }
 }
+.locationCol {
+  max-width: 280px;
+  min-width: 220px;
+  white-space: normal;
+  word-break: break-word;
+  line-height: 1.5;
+}
+
+
+/* Mobile table fix */
+@media (max-width: 768px) {
+  .locationCol {
+    max-width: 240px;
+    min-width: 220px;
+  }
+
+  table {
+    min-width: 900px;
+  }
+}

@@ -35,6 +35,63 @@ export default function DashboardPage() {
     router.push("/");
   }
 
+  // ✅ Force Supabase timestamp as UTC, then show Sri Lanka time
+  function formatSriLankaTime(dateValue) {
+    if (!dateValue) return "-";
+
+    let value = String(dateValue).trim();
+
+    // Supabase sometimes returns timestamp like:
+    // 2026-05-02T08:27:50
+    // or 2026-05-02 08:27:50
+    // If no timezone exists, force it as UTC by adding Z.
+    value = value.replace(" ", "T");
+
+    const hasTimezone =
+      value.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(value);
+
+    if (!hasTimezone) {
+      value = value + "Z";
+    }
+
+    const date = new Date(value);
+
+    if (isNaN(date.getTime())) {
+      return "-";
+    }
+
+    return date.toLocaleString("en-LK", {
+      timeZone: "Asia/Colombo",
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+      hour12: true,
+    });
+  }
+
+  // ✅ Convert Sri Lanka date start to UTC timestamp for Supabase timestamp column
+  function sriLankaStartOfDayToUtc(dateString) {
+    if (!dateString) return null;
+
+    const utcDate = new Date(`${dateString}T00:00:00+05:30`);
+
+    // For Supabase timestamp without timezone column, send UTC without Z
+    return utcDate.toISOString().replace("T", " ").replace("Z", "");
+  }
+
+  // ✅ Convert Sri Lanka date end to UTC timestamp for Supabase timestamp column
+  function sriLankaEndOfDayToUtc(dateString) {
+    if (!dateString) return null;
+
+    const utcDate = new Date(`${dateString}T23:59:59+05:30`);
+
+    // For Supabase timestamp without timezone column, send UTC without Z
+    return utcDate.toISOString().replace("T", " ").replace("Z", "");
+  }
+
   async function loadLatestTrips() {
     const { data, error } = await supabase
       .from("trips")
@@ -57,11 +114,11 @@ export default function DashboardPage() {
       .order("start_time", { ascending: false });
 
     if (fromDate) {
-      query = query.gte("start_time", `${fromDate}T00:00:00`);
+      query = query.gte("start_time", sriLankaStartOfDayToUtc(fromDate));
     }
 
     if (toDate) {
-      query = query.lte("start_time", `${toDate}T23:59:59`);
+      query = query.lte("start_time", sriLankaEndOfDayToUtc(toDate));
     }
 
     const { data, error } = await query;
@@ -77,7 +134,8 @@ export default function DashboardPage() {
       filtered = filtered.filter((item) =>
         item.drivers?.username
           ?.toLowerCase()
-          .includes(driverSearch.toLowerCase())
+          .trim()
+          .includes(driverSearch.toLowerCase().trim())
       );
     }
 
@@ -107,10 +165,10 @@ export default function DashboardPage() {
       "Driver Name": r.drivers?.username || "",
       "Vehicle Number": r.drivers?.vehicle_number || "",
       "Phone Number": r.drivers?.phone_number || "",
-      "Start Time": r.start_time || "",
-      "Stop Time": r.stop_time || "",
+      "Start Time (Sri Lanka)": formatSriLankaTime(r.start_time),
+      "Stop Time (Sri Lanka)": formatSriLankaTime(r.stop_time),
       "Current Location": r.current_location || "",
-      "Total KM": r.total_km || 0,
+      "Total KM": Number(r.total_km || 0).toFixed(2),
       "Verification Status": r.verification_status || "Pending",
     }));
 
@@ -170,80 +228,78 @@ export default function DashboardPage() {
               />
             </div>
           </div>
-        <div style={{ display: "flex", gap: 12, marginTop: 14 }}>
-  <button className="primaryBtn" onClick={generateReport}>
-    Generate Report
-  </button>
 
-  <button className="secondaryBtn" onClick={exportExcel}>
-    Export Excel
-  </button>
-</div>
-      
+          <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+            <button className="primaryBtn" onClick={generateReport}>
+              Generate Report
+            </button>
+
+            <button className="secondaryBtn" onClick={exportExcel}>
+              Export Excel
+            </button>
+          </div>
         </div>
 
         <div className="card">
           <h2>Driver Tracking Details</h2>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Driver</th>
-                <th>Vehicle</th>
-                <th>Phone</th>
-                <th>Location</th>
-                <th>Total KM</th>
-                <th>Time</th>
-                <th>Map</th>
-                <th>Meter Images</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {rows.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.drivers?.username || "-"}</td>
-                  <td>{r.drivers?.vehicle_number || "-"}</td>
-                  <td>{r.drivers?.phone_number || "-"}</td>
-                  <td>{r.current_location || "Not available"}</td>
-                  <td>{Number(r.total_km || 0).toFixed(2)} km</td>
-                  <td>
-                    {r.start_time
-                      ? new Date(r.start_time).toLocaleString()
-                      : "-"}
-                  </td>
-                  <td>
-                    {r.current_lat && r.current_lng ? (
-                      <a
-                        className="mapBtn"
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        href={`https://www.google.com/maps?q=${r.current_lat},${r.current_lng}`}
-                      >
-                        View on Map
-                      </a>
-                    ) : (
-                      "-"
-                    )}
-                  </td>
-                  <td>
-                    <button
-                      className="secondaryBtn"
-                      onClick={() => getImageUrl(r.start_meter_image)}
-                    >
-                      Start
-                    </button>{" "}
-                    <button
-                      className="secondaryBtn"
-                      onClick={() => getImageUrl(r.end_meter_image)}
-                    >
-                      End
-                    </button>
-                  </td>
+          <div className="tableWrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Driver</th>
+                  <th>Vehicle</th>
+                  <th>Phone</th>
+                  <th className="locationCol">Start Location</th>
+                  <th>Total KM</th>
+                  <th>Time</th>
+                  <th>Map</th>
+                  <th>Meter Images</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.drivers?.username || "-"}</td>
+                    <td>{r.drivers?.vehicle_number || "-"}</td>
+                    <td>{r.drivers?.phone_number || "-"}</td>
+                    <td className="locationCol">{r.current_location || "Not available"}</td>
+                    <td>{Number(r.total_km || 0).toFixed(2)} km</td>
+                    <td>{formatSriLankaTime(r.start_time)}</td>
+                    <td>
+                      {r.current_lat && r.current_lng ? (
+                        <a
+                          className="mapBtn"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          href={`https://www.google.com/maps?q=${r.current_lat},${r.current_lng}`}
+                        >
+                          View on Map
+                        </a>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      <button
+                        className="secondaryBtn"
+                        onClick={() => getImageUrl(r.start_meter_image)}
+                      >
+                        Start
+                      </button>{" "}
+                      <button
+                        className="secondaryBtn"
+                        onClick={() => getImageUrl(r.end_meter_image)}
+                      >
+                        End
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </main>
     </>
