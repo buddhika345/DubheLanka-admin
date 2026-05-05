@@ -13,22 +13,58 @@ export default function DashboardPage() {
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [rows, setRows] = useState([]);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Change this value if you need shorter/longer auto logout time
+  const AUTO_LOGOUT_MINUTES = 5;
 
   useEffect(() => {
     checkUser();
     loadLatestTrips();
   }, []);
 
-  async function checkUser() {
-    const { data, error } = await supabase.auth.getUser();
+  // ✅ Auto logout after inactivity
+  useEffect(() => {
+    let timeout;
 
-    if (error || !data.user) {
+    const logoutUser = async () => {
+      await supabase.auth.signOut();
       router.push("/");
-      return;
-    }
+    };
 
-    setAdminEmail(data.user.email);
+    const resetTimer = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(logoutUser, AUTO_LOGOUT_MINUTES * 60 * 1000);
+    };
+
+    const events = ["mousemove", "keydown", "click", "scroll", "touchstart"];
+
+    events.forEach((event) => {
+      window.addEventListener(event, resetTimer);
+    });
+
+    resetTimer();
+
+    return () => {
+      clearTimeout(timeout);
+
+      events.forEach((event) => {
+        window.removeEventListener(event, resetTimer);
+      });
+    };
+  }, [router]);
+
+async function checkUser() {
+  const { data, error } = await supabase.auth.getUser();
+
+  if (error || !data.user) {
+    router.push("/unauthorized");
+    return;
   }
+
+  setAdminEmail(data.user.email);
+  setCheckingAuth(false);
+}
 
   async function logout() {
     await supabase.auth.signOut();
@@ -218,6 +254,10 @@ export default function DashboardPage() {
           <div>
             <h1>Admin Dashboard</h1>
             <p style={{ color: "#9aa8bb" }}>Logged in as: {adminEmail}</p>
+            <p style={{ color: "#ffb86b", fontSize: 13, marginTop: 6 }}>
+              Security: This session will automatically logout after{" "}
+              {AUTO_LOGOUT_MINUTES} minutes of inactivity.
+            </p>
           </div>
 
           <button className="primaryBtn" onClick={loadLatestTrips}>
