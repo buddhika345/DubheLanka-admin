@@ -179,7 +179,7 @@ export default function DashboardPage() {
 
     const { data, error } = await supabase.storage
       .from("odometer-images")
-      .createSignedUrl(path, 60 * 10);
+      .createSignedUrl(path, 30);
 
     if (error) {
       alert(error.message);
