@@ -35,16 +35,10 @@ export default function DashboardPage() {
     router.push("/");
   }
 
-  // ✅ Force Supabase timestamp as UTC, then show Sri Lanka time
   function formatSriLankaTime(dateValue) {
     if (!dateValue) return "-";
 
     let value = String(dateValue).trim();
-
-    // Supabase sometimes returns timestamp like:
-    // 2026-05-02T08:27:50
-    // or 2026-05-02 08:27:50
-    // If no timezone exists, force it as UTC by adding Z.
     value = value.replace(" ", "T");
 
     const hasTimezone =
@@ -72,30 +66,56 @@ export default function DashboardPage() {
     });
   }
 
-  // ✅ Convert Sri Lanka date start to UTC timestamp for Supabase timestamp column
   function sriLankaStartOfDayToUtc(dateString) {
     if (!dateString) return null;
 
     const utcDate = new Date(`${dateString}T00:00:00+05:30`);
-
-    // For Supabase timestamp without timezone column, send UTC without Z
     return utcDate.toISOString().replace("T", " ").replace("Z", "");
   }
 
-  // ✅ Convert Sri Lanka date end to UTC timestamp for Supabase timestamp column
   function sriLankaEndOfDayToUtc(dateString) {
     if (!dateString) return null;
 
     const utcDate = new Date(`${dateString}T23:59:59+05:30`);
-
-    // For Supabase timestamp without timezone column, send UTC without Z
     return utcDate.toISOString().replace("T", " ").replace("Z", "");
+  }
+
+  function getTrackingType(row) {
+    return row.tracking_type === "salesman" ? "Salesman" : "Driver";
+  }
+
+  function getPersonName(row) {
+    if (row.tracking_type === "salesman") {
+      return row.salesmen?.username || "-";
+    }
+
+    return row.drivers?.username || "-";
+  }
+
+  function getPersonContact(row) {
+    if (row.tracking_type === "salesman") {
+      return row.salesmen?.phone_number || "-";
+    }
+
+    return row.drivers?.phone_number || "-";
+  }
+
+  function getVehicleOrEmail(row) {
+    if (row.tracking_type === "salesman") {
+      return row.salesmen?.email || "-";
+    }
+
+    return row.drivers?.vehicle_number || "-";
   }
 
   async function loadLatestTrips() {
     const { data, error } = await supabase
       .from("trips")
-      .select("*, drivers(username, vehicle_number, phone_number)")
+      .select(`
+        *,
+        drivers(username, vehicle_number, phone_number),
+        salesmen(username, email, phone_number)
+      `)
       .order("created_at", { ascending: false })
       .limit(30);
 
@@ -110,7 +130,11 @@ export default function DashboardPage() {
   async function generateReport() {
     let query = supabase
       .from("trips")
-      .select("*, drivers(username, vehicle_number, phone_number)")
+      .select(`
+        *,
+        drivers(username, vehicle_number, phone_number),
+        salesmen(username, email, phone_number)
+      `)
       .order("start_time", { ascending: false });
 
     if (fromDate) {
@@ -131,12 +155,17 @@ export default function DashboardPage() {
     let filtered = data || [];
 
     if (driverSearch.trim()) {
-      filtered = filtered.filter((item) =>
-        item.drivers?.username
+      filtered = filtered.filter((item) => {
+        const name =
+          item.tracking_type === "salesman"
+            ? item.salesmen?.username
+            : item.drivers?.username;
+
+        return name
           ?.toLowerCase()
           .trim()
-          .includes(driverSearch.toLowerCase().trim())
-      );
+          .includes(driverSearch.toLowerCase().trim());
+      });
     }
 
     setRows(filtered);
@@ -162,12 +191,13 @@ export default function DashboardPage() {
 
   function exportExcel() {
     const excelRows = rows.map((r) => ({
-      "Driver Name": r.drivers?.username || "",
-      "Vehicle Number": r.drivers?.vehicle_number || "",
-      "Phone Number": r.drivers?.phone_number || "",
+      "Tracking Type": getTrackingType(r),
+      Name: getPersonName(r),
+      "Vehicle / Email": getVehicleOrEmail(r),
+      "Phone Number": getPersonContact(r),
       "Start Time (Sri Lanka)": formatSriLankaTime(r.start_time),
       "Stop Time (Sri Lanka)": formatSriLankaTime(r.stop_time),
-      "Current Location": r.current_location || "",
+      "Start Location": r.current_location || "",
       "Total KM": Number(r.total_km || 0).toFixed(2),
       "Verification Status": r.verification_status || "Pending",
     }));
@@ -175,8 +205,8 @@ export default function DashboardPage() {
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
     const workbook = XLSX.utils.book_new();
 
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Driver Report");
-    XLSX.writeFile(workbook, "driver_tracking_report.xlsx");
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Tracking Report");
+    XLSX.writeFile(workbook, "tracking_report.xlsx");
   }
 
   return (
@@ -196,13 +226,13 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <h2>Search & Generate Driver Report</h2>
+          <h2>Search & Generate Tracking Report</h2>
 
           <div className="grid">
             <div>
-              <label>Driver Name</label>
+              <label>Driver / Salesman Name</label>
               <input
-                placeholder="Search driver name"
+                placeholder="Search driver or salesman name"
                 value={driverSearch}
                 onChange={(e) => setDriverSearch(e.target.value)}
               />
@@ -229,7 +259,14 @@ export default function DashboardPage() {
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: 12, marginTop: 14, flexWrap: "wrap" }}>
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 14,
+              flexWrap: "wrap",
+            }}
+          >
             <button className="primaryBtn" onClick={generateReport}>
               Generate Report
             </button>
@@ -241,14 +278,15 @@ export default function DashboardPage() {
         </div>
 
         <div className="card">
-          <h2>Driver Tracking Details</h2>
+          <h2>Tracking Details</h2>
 
           <div className="tableWrap">
             <table>
               <thead>
                 <tr>
-                  <th>Driver</th>
-                  <th>Vehicle</th>
+                  <th>Type</th>
+                  <th>Name</th>
+                  <th>Vehicle / Email</th>
                   <th>Phone</th>
                   <th className="locationCol">Start Location</th>
                   <th>Total KM</th>
@@ -261,12 +299,27 @@ export default function DashboardPage() {
               <tbody>
                 {rows.map((r) => (
                   <tr key={r.id}>
-                    <td>{r.drivers?.username || "-"}</td>
-                    <td>{r.drivers?.vehicle_number || "-"}</td>
-                    <td>{r.drivers?.phone_number || "-"}</td>
-                    <td className="locationCol">{r.current_location || "Not available"}</td>
+                    <td>
+                      <span
+                        className={
+                          r.tracking_type === "salesman"
+                            ? "tagSalesman"
+                            : "tagDriver"
+                        }
+                      >
+                        {getTrackingType(r)}
+                      </span>
+                    </td>
+
+                    <td>{getPersonName(r)}</td>
+                    <td>{getVehicleOrEmail(r)}</td>
+                    <td>{getPersonContact(r)}</td>
+                    <td className="locationCol">
+                      {r.current_location || "Not available"}
+                    </td>
                     <td>{Number(r.total_km || 0).toFixed(2)} km</td>
                     <td>{formatSriLankaTime(r.start_time)}</td>
+
                     <td>
                       {r.current_lat && r.current_lng ? (
                         <a
@@ -281,6 +334,7 @@ export default function DashboardPage() {
                         "-"
                       )}
                     </td>
+
                     <td>
                       <button
                         className="secondaryBtn"
@@ -297,6 +351,14 @@ export default function DashboardPage() {
                     </td>
                   </tr>
                 ))}
+
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan="9" style={{ color: "#9aa8bb" }}>
+                      No tracking records found.
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
