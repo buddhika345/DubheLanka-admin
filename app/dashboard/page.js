@@ -14,16 +14,15 @@ export default function DashboardPage() {
   const [toDate, setToDate] = useState("");
   const [rows, setRows] = useState([]);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [selectedType, setSelectedType] = useState("salesman");
 
-  // Change this value if you need shorter/longer auto logout time
   const AUTO_LOGOUT_MINUTES = 5;
 
   useEffect(() => {
     checkUser();
-    loadLatestTrips();
+    loadLatestTrips("salesman");
   }, []);
 
-  // ✅ Auto logout after inactivity
   useEffect(() => {
     let timeout;
 
@@ -54,17 +53,17 @@ export default function DashboardPage() {
     };
   }, [router]);
 
-async function checkUser() {
-  const { data, error } = await supabase.auth.getUser();
+  async function checkUser() {
+    const { data, error } = await supabase.auth.getUser();
 
-  if (error || !data.user) {
-    router.push("/unauthorized");
-    return;
+    if (error || !data.user) {
+      router.push("/unauthorized");
+      return;
+    }
+
+    setAdminEmail(data.user.email);
+    setCheckingAuth(false);
   }
-
-  setAdminEmail(data.user.email);
-  setCheckingAuth(false);
-}
 
   async function logout() {
     await supabase.auth.signOut();
@@ -144,7 +143,7 @@ async function checkUser() {
     return row.drivers?.vehicle_number || "-";
   }
 
-  async function loadLatestTrips() {
+  async function loadLatestTrips(type = selectedType) {
     const { data, error } = await supabase
       .from("trips")
       .select(`
@@ -152,6 +151,7 @@ async function checkUser() {
         drivers(username, vehicle_number, phone_number),
         salesmen(username, email, phone_number)
       `)
+      .eq("tracking_type", type)
       .order("created_at", { ascending: false })
       .limit(30);
 
@@ -171,6 +171,7 @@ async function checkUser() {
         drivers(username, vehicle_number, phone_number),
         salesmen(username, email, phone_number)
       `)
+      .eq("tracking_type", selectedType)
       .order("start_time", { ascending: false });
 
     if (fromDate) {
@@ -225,6 +226,63 @@ async function checkUser() {
     window.open(data.signedUrl, "_blank");
   }
 
+  async function viewSalesmanRoute(row) {
+    if (row.tracking_type !== "salesman") {
+      alert("Route view is only available for salesman records.");
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("salesman_visits")
+      .select("*")
+      .eq("trip_id", row.id)
+      .order("visit_no", { ascending: true });
+
+    if (error) {
+      alert(error.message);
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      alert("No confirmed visit locations found for this journey.");
+      return;
+    }
+
+    const validPoints = data.filter((p) => p.latitude && p.longitude);
+
+    if (validPoints.length === 0) {
+      alert("No valid GPS points found for this route.");
+      return;
+    }
+
+    if (validPoints.length === 1) {
+      const p = validPoints[0];
+      window.open(
+        `https://www.google.com/maps?q=${p.latitude},${p.longitude}`,
+        "_blank"
+      );
+      return;
+    }
+
+    const origin = `${validPoints[0].latitude},${validPoints[0].longitude}`;
+    const destination = `${validPoints[validPoints.length - 1].latitude},${
+      validPoints[validPoints.length - 1].longitude
+    }`;
+
+    const waypoints = validPoints
+      .slice(1, -1)
+      .map((p) => `${p.latitude},${p.longitude}`)
+      .join("|");
+
+    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+
+    if (waypoints) {
+      url += `&waypoints=${encodeURIComponent(waypoints)}`;
+    }
+
+    window.open(url, "_blank");
+  }
+
   function exportExcel() {
     const excelRows = rows.map((r) => ({
       "Tracking Type": getTrackingType(r),
@@ -233,9 +291,10 @@ async function checkUser() {
       "Phone Number": getPersonContact(r),
       "Start Time (Sri Lanka)": formatSriLankaTime(r.start_time),
       "Stop Time (Sri Lanka)": formatSriLankaTime(r.stop_time),
-      "Start Location": r.current_location || "",
+      "Current Location": r.current_location || "",
       "Total KM": Number(r.total_km || 0).toFixed(2),
       "Verification Status": r.verification_status || "Pending",
+      "Proof Image Status": r.end_meter_image ? "Uploaded" : "Not Uploaded",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
@@ -243,6 +302,23 @@ async function checkUser() {
 
     XLSX.utils.book_append_sheet(workbook, worksheet, "Tracking Report");
     XLSX.writeFile(workbook, "tracking_report.xlsx");
+  }
+
+  function changeTrackingType(type) {
+    setSelectedType(type);
+    setRows([]);
+    loadLatestTrips(type);
+  }
+
+  if (checkingAuth) {
+    return (
+      <main className="page">
+        <div className="loginCard">
+          <h1>Checking access...</h1>
+          <p>Please wait.</p>
+        </div>
+      </main>
+    );
   }
 
   return (
@@ -260,7 +336,10 @@ async function checkUser() {
             </p>
           </div>
 
-          <button className="primaryBtn" onClick={loadLatestTrips}>
+          <button
+            className="primaryBtn"
+            onClick={() => loadLatestTrips(selectedType)}
+          >
             Refresh
           </button>
         </div>
@@ -318,7 +397,39 @@ async function checkUser() {
         </div>
 
         <div className="card">
-          <h2>Tracking Details</h2>
+          <h2>
+            {selectedType === "salesman"
+              ? "Salesman Tracking Details"
+              : "Driver Tracking Details"}
+          </h2>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 12,
+              marginTop: 14,
+              marginBottom: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            <button
+              className={
+                selectedType === "salesman" ? "primaryBtn" : "secondaryBtn"
+              }
+              onClick={() => changeTrackingType("salesman")}
+            >
+              Salesman Details
+            </button>
+
+            <button
+              className={
+                selectedType === "driver" ? "primaryBtn" : "secondaryBtn"
+              }
+              onClick={() => changeTrackingType("driver")}
+            >
+              Driver Details
+            </button>
+          </div>
 
           <div className="tableWrap">
             <table>
@@ -328,10 +439,11 @@ async function checkUser() {
                   <th>Name</th>
                   <th>Vehicle / Email</th>
                   <th>Phone</th>
-                  <th className="locationCol">Start Location</th>
+                  <th className="locationCol">Current Location</th>
                   <th>Total KM</th>
                   <th>Time</th>
-                  <th>Map</th>
+                  <th>Current Map</th>
+                  <th>Visite Route</th>
                   <th>Meter Images</th>
                 </tr>
               </thead>
@@ -376,25 +488,36 @@ async function checkUser() {
                     </td>
 
                     <td>
-                      <button
-                        className="secondaryBtn"
-                        onClick={() => getImageUrl(r.start_meter_image)}
-                      >
-                        Start
-                      </button>{" "}
-                      <button
-                        className="secondaryBtn"
-                        onClick={() => getImageUrl(r.end_meter_image)}
-                      >
-                        End
-                      </button>
+                      {r.tracking_type === "salesman" ? (
+                        <button
+                          className="secondaryBtn"
+                          onClick={() => viewSalesmanRoute(r)}
+                        >
+                          View Route
+                        </button>
+                      ) : (
+                        "-"
+                      )}
                     </td>
+
+               <td>
+  {r.end_meter_image ? (
+    <button
+      className="secondaryBtn"
+      onClick={() => getImageUrl(r.end_meter_image)}
+    >
+      View Proof
+    </button>
+  ) : (
+    <span style={{ color: "#9aa8bb" }}>No Image</span>
+  )}
+</td>
                   </tr>
                 ))}
 
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan="9" style={{ color: "#9aa8bb" }}>
+                    <td colSpan="10" style={{ color: "#9aa8bb" }}>
                       No tracking records found.
                     </td>
                   </tr>
