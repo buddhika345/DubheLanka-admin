@@ -247,63 +247,122 @@ export default function DashboardPage() {
   }
 
   // Visit Route = confirmed N1, N2, N3 points from salesman_visits table
-  async function viewSalesmanRoute(row) {
-    if (row.tracking_type !== "salesman") {
-      alert("Visit route is only available for salesman records.");
-      return;
-    }
-
-    const { data, error } = await supabase
-      .from("salesman_visits")
-      .select("*")
-      .eq("trip_id", row.id)
-      .order("visit_no", { ascending: true });
-
-    if (error) {
-      alert(error.message);
-      return;
-    }
-
-    if (!data || data.length === 0) {
-      alert("No confirmed visit locations found for this journey.");
-      return;
-    }
-
-    const validPoints = data.filter((p) => p.latitude && p.longitude);
-
-    if (validPoints.length === 0) {
-      alert("No valid GPS points found for this route.");
-      return;
-    }
-
-    if (validPoints.length === 1) {
-      const p = validPoints[0];
-      window.open(
-        `https://www.google.com/maps?q=${p.latitude},${p.longitude}`,
-        "_blank"
-      );
-      return;
-    }
-
-    const origin = `${validPoints[0].latitude},${validPoints[0].longitude}`;
-
-    const destination = `${validPoints[validPoints.length - 1].latitude},${
-      validPoints[validPoints.length - 1].longitude
-    }`;
-
-    const waypoints = validPoints
-      .slice(1, -1)
-      .map((p) => `${p.latitude},${p.longitude}`)
-      .join("|");
-
-    let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
-
-    if (waypoints) {
-      url += `&waypoints=${encodeURIComponent(waypoints)}`;
-    }
-
-    window.open(url, "_blank");
+  async function viewDriverRoute(row) {
+  if (row.tracking_type !== "driver") {
+    alert("Driver route is only available for driver records.");
+    return;
   }
+
+  const { data, error } = await supabase
+    .from("location_updates")
+    .select("*")
+    .eq("trip_id", row.id)
+    .eq("tracking_type", "driver")
+    .eq("point_type", "confirmed")
+    .order("recorded_at", { ascending: true });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    alert("No confirmed driver locations found for this journey.");
+    return;
+  }
+
+  const validPoints = data.filter((p) => p.latitude && p.longitude);
+
+  if (validPoints.length === 0) {
+    alert("No valid GPS points found for this route.");
+    return;
+  }
+
+  if (validPoints.length === 1) {
+    const p = validPoints[0];
+    window.open(
+      `https://www.google.com/maps?q=${p.latitude},${p.longitude}`,
+      "_blank"
+    );
+    return;
+  }
+
+  const origin = `${validPoints[0].latitude},${validPoints[0].longitude}`;
+
+  const destination = `${validPoints[validPoints.length - 1].latitude},${
+    validPoints[validPoints.length - 1].longitude
+  }`;
+
+  const waypoints = validPoints
+    .slice(1, -1)
+    .map((p) => `${p.latitude},${p.longitude}`)
+    .join("|");
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+
+  if (waypoints) {
+    url += `&waypoints=${encodeURIComponent(waypoints)}`;
+  }
+
+  window.open(url, "_blank");
+}
+async function viewSalesmanRoute(row) {
+  if (row.tracking_type !== "salesman") {
+    alert("Visit route is only available for salesman records.");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from("salesman_visits")
+    .select("*")
+    .eq("trip_id", row.id)
+    .order("visit_no", { ascending: true });
+
+  if (error) {
+    alert(error.message);
+    return;
+  }
+
+  if (!data || data.length === 0) {
+    alert("No confirmed visit locations found for this journey.");
+    return;
+  }
+
+  const validPoints = data.filter((p) => p.latitude && p.longitude);
+
+  if (validPoints.length === 0) {
+    alert("No valid GPS points found for this route.");
+    return;
+  }
+
+  if (validPoints.length === 1) {
+    const p = validPoints[0];
+    window.open(
+      `https://www.google.com/maps?q=${p.latitude},${p.longitude}`,
+      "_blank"
+    );
+    return;
+  }
+
+  const origin = `${validPoints[0].latitude},${validPoints[0].longitude}`;
+
+  const destination = `${validPoints[validPoints.length - 1].latitude},${
+    validPoints[validPoints.length - 1].longitude
+  }`;
+
+  const waypoints = validPoints
+    .slice(1, -1)
+    .map((p) => `${p.latitude},${p.longitude}`)
+    .join("|");
+
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+
+  if (waypoints) {
+    url += `&waypoints=${encodeURIComponent(waypoints)}`;
+  }
+
+  window.open(url, "_blank");
+}
 
   function exportExcel() {
     const excelRows = rows.map((r) => ({
@@ -516,18 +575,25 @@ export default function DashboardPage() {
                       )}
                     </td>
 
-                    <td>
-                      {r.tracking_type === "salesman" ? (
-                        <button
-                          className="secondaryBtn"
-                          onClick={() => viewSalesmanRoute(r)}
-                        >
-                          View Route
-                        </button>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
+<td>
+  {r.tracking_type === "salesman" ? (
+    <button
+      className="secondaryBtn"
+      onClick={() => viewSalesmanRoute(r)}
+    >
+      View Route
+    </button>
+  ) : r.tracking_type === "driver" ? (
+    <button
+      className="secondaryBtn"
+      onClick={() => viewDriverRoute(r)}
+    >
+      View Route
+    </button>
+  ) : (
+    "-"
+  )}
+</td>
 
                     <td>
                       {r.end_meter_image ? (
