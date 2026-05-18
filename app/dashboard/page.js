@@ -23,6 +23,7 @@ export default function DashboardPage() {
     loadLatestTrips("salesman");
   }, []);
 
+  // Auto logout after inactivity
   useEffect(() => {
     let timeout;
 
@@ -143,6 +144,25 @@ export default function DashboardPage() {
     return row.drivers?.vehicle_number || "-";
   }
 
+  // Current location means latest real tracked location from trips table
+  function getDisplayLocation(row) {
+    return row.current_location || "Not available";
+  }
+
+  // Total KM means latest running KM from trips table
+  function getDisplayKm(row) {
+    return Number(row.total_km || 0).toFixed(2);
+  }
+
+  // Current map means latest real/current coordinates from trips table
+  function getDisplayMapLat(row) {
+    return row.current_lat;
+  }
+
+  function getDisplayMapLng(row) {
+    return row.current_lng;
+  }
+
   async function loadLatestTrips(type = selectedType) {
     const { data, error } = await supabase
       .from("trips")
@@ -210,7 +230,7 @@ export default function DashboardPage() {
 
   async function getImageUrl(path) {
     if (!path) {
-      alert("No image uploaded");
+      alert("No proof image uploaded");
       return;
     }
 
@@ -226,9 +246,10 @@ export default function DashboardPage() {
     window.open(data.signedUrl, "_blank");
   }
 
+  // Visit Route = confirmed N1, N2, N3 points from salesman_visits table
   async function viewSalesmanRoute(row) {
     if (row.tracking_type !== "salesman") {
-      alert("Route view is only available for salesman records.");
+      alert("Visit route is only available for salesman records.");
       return;
     }
 
@@ -265,6 +286,7 @@ export default function DashboardPage() {
     }
 
     const origin = `${validPoints[0].latitude},${validPoints[0].longitude}`;
+
     const destination = `${validPoints[validPoints.length - 1].latitude},${
       validPoints[validPoints.length - 1].longitude
     }`;
@@ -291,10 +313,10 @@ export default function DashboardPage() {
       "Phone Number": getPersonContact(r),
       "Start Time (Sri Lanka)": formatSriLankaTime(r.start_time),
       "Stop Time (Sri Lanka)": formatSriLankaTime(r.stop_time),
-      "Current Location": r.current_location || "",
-      "Total KM": Number(r.total_km || 0).toFixed(2),
-      "Verification Status": r.verification_status || "Pending",
+      "Current Location": getDisplayLocation(r),
+      "Total KM": getDisplayKm(r),
       "Proof Image Status": r.end_meter_image ? "Uploaded" : "Not Uploaded",
+      "Verification Status": r.verification_status || "Pending",
     }));
 
     const worksheet = XLSX.utils.json_to_sheet(excelRows);
@@ -329,7 +351,9 @@ export default function DashboardPage() {
         <div className="dashboardHeader">
           <div>
             <h1>Admin Dashboard</h1>
+
             <p style={{ color: "#9aa8bb" }}>Logged in as: {adminEmail}</p>
+
             <p style={{ color: "#ffb86b", fontSize: 13, marginTop: 6 }}>
               Security: This session will automatically logout after{" "}
               {AUTO_LOGOUT_MINUTES} minutes of inactivity.
@@ -443,8 +467,8 @@ export default function DashboardPage() {
                   <th>Total KM</th>
                   <th>Time</th>
                   <th>Current Map</th>
-                  <th>Visite Route</th>
-                  <th>Meter Images</th>
+                  <th>Visit Route</th>
+                  <th>Proof Image</th>
                 </tr>
               </thead>
 
@@ -464,21 +488,26 @@ export default function DashboardPage() {
                     </td>
 
                     <td>{getPersonName(r)}</td>
+
                     <td>{getVehicleOrEmail(r)}</td>
+
                     <td>{getPersonContact(r)}</td>
-                    <td className="locationCol">
-                      {r.current_location || "Not available"}
-                    </td>
-                    <td>{Number(r.total_km || 0).toFixed(2)} km</td>
+
+                    <td className="locationCol">{getDisplayLocation(r)}</td>
+
+                    <td>{getDisplayKm(r)} km</td>
+
                     <td>{formatSriLankaTime(r.start_time)}</td>
 
                     <td>
-                      {r.current_lat && r.current_lng ? (
+                      {getDisplayMapLat(r) && getDisplayMapLng(r) ? (
                         <a
                           className="mapBtn"
                           target="_blank"
                           rel="noopener noreferrer"
-                          href={`https://www.google.com/maps?q=${r.current_lat},${r.current_lng}`}
+                          href={`https://www.google.com/maps?q=${getDisplayMapLat(
+                            r
+                          )},${getDisplayMapLng(r)}`}
                         >
                           View on Map
                         </a>
@@ -500,18 +529,18 @@ export default function DashboardPage() {
                       )}
                     </td>
 
-               <td>
-  {r.end_meter_image ? (
-    <button
-      className="secondaryBtn"
-      onClick={() => getImageUrl(r.end_meter_image)}
-    >
-      View Proof
-    </button>
-  ) : (
-    <span style={{ color: "#9aa8bb" }}>No Image</span>
-  )}
-</td>
+                    <td>
+                      {r.end_meter_image ? (
+                        <button
+                          className="secondaryBtn"
+                          onClick={() => getImageUrl(r.end_meter_image)}
+                        >
+                          View Proof
+                        </button>
+                      ) : (
+                        <span style={{ color: "#9aa8bb" }}>No Image</span>
+                      )}
+                    </td>
                   </tr>
                 ))}
 
